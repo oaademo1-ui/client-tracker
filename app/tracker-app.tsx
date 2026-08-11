@@ -73,6 +73,7 @@ export default function TrackerApp() {
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(null), 2800); return () => clearTimeout(timer); }, [notice]);
 
   const overdueCount = tasks.filter(t => t.status !== "completed" && !!t.due_date && t.due_date < todayLocal()).length;
+  const hasFilters = assigneeFilter !== "all" || priorityFilter !== "all" || statusFilter !== "all";
   const filteredTasks = useMemo(() => tasks.filter(t =>
     (assigneeFilter === "all" || t.assignee_id === assigneeFilter) &&
     (priorityFilter === "all" || t.priority === priorityFilter) &&
@@ -142,6 +143,7 @@ export default function TrackerApp() {
         <select className="filter-select" aria-label="Filter by priority" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}><option value="all">All priorities</option><option value="high">High priority</option><option value="medium">Medium priority</option><option value="low">Low priority</option></select>
         <select className="filter-select" aria-label="Filter by status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="all">All statuses</option>{statuses.map(s => <option value={s.id} key={s.id}>{s.label}</option>)}</select>
         <select className="filter-select" aria-label="Sort tasks" value={sort} onChange={e => setSort(e.target.value)}><option value="due">Due date</option><option value="priority">Priority</option></select>
+        {hasFilters && <button className="button-secondary" onClick={() => { setAssigneeFilter("all"); setPriorityFilter("all"); setStatusFilter("all"); }}>Clear filters</button>}
       </div></div>
 
       {error && <div role="alert" className="mb-6 flex items-center justify-between rounded-lg border border-[#e2b4b4] bg-[#fff4f2] px-4 py-3 text-sm text-[#8d3535]"><span>{error}</span><button onClick={() => void loadData()} className="font-semibold underline">Retry</button></div>}
@@ -173,6 +175,11 @@ function TaskCard({ task, onEdit, onDelete, onStatus, onActivity }: { task: Task
 }
 
 function Modal({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
   return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1f201d]/35 p-4 backdrop-blur-[2px]" onMouseDown={e => { if (e.currentTarget === e.target) onClose(); }}><section role="dialog" aria-modal="true" aria-label={title} className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/50 bg-[#fdfdfb] shadow-2xl"><header className="flex items-start justify-between border-b border-[#e5e5df] px-6 py-5"><div><h2 className="text-xl font-semibold tracking-tight">{title}</h2><p className="mt-1 text-xs text-[#7e7f77]">{subtitle}</p></div><button onClick={onClose} className="rounded-lg p-2 text-[#85867f] hover:bg-[#f0f0eb]" aria-label="Close"><Icon name="x" /></button></header><div className="p-6">{children}</div></section></div>;
 }
 

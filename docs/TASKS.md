@@ -20,12 +20,12 @@
 ## Sprint 2 — Polish & Filter
 **Goal:** Make the board usable for daily work.
 
-- [ ] Filter by assignee, priority, status
-- [ ] Sort by due date / priority
-- [ ] Overdue badge count in header
-- [ ] Responsive mobile layout
-- [ ] Confirm-before-delete dialog
-- [ ] Activity log visible per task (history)
+- [x] Filter by assignee, priority, status
+- [x] Sort by due date / priority
+- [x] Overdue badge count in header
+- [x] Responsive mobile layout
+- [x] Confirm-before-delete dialog
+- [x] Activity log visible per task (history)
 
 **Definition of Done:** User filters tasks by assignee, sees only Sarah's tasks, sorts by due date, and sees activity history on a task.
 
