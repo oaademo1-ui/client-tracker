@@ -41,7 +41,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <form action={sendMagicLink} className="space-y-3">
           <label className="block text-xs font-semibold text-[#5b5d55]"><span className="mb-1.5 block">Email for magic link</span><input name="email" type="email" autoComplete="email" required placeholder="you@company.com" /></label>
-          <button className="button-secondary w-full">Email me a magic link</button>
+          <button className="button-secondary w-full">Continue with magic link</button>
+          <p className="text-center text-xs leading-5 text-[#85867f]">New here? The link creates your account automatically.</p>
         </form>
       </section>
     </main>

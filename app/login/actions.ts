@@ -51,8 +51,8 @@ export async function sendMagicLink(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${origin}/auth/callback`, shouldCreateUser: false },
+    options: { emailRedirectTo: `${origin}/auth/callback`, shouldCreateUser: true },
   });
   if (error) loginRedirect("error", error.message);
-  loginRedirect("message", "Magic link sent. Check your inbox.");
+  loginRedirect("message", "Magic link sent. Open it to create or access your account.");
 }
