@@ -22,7 +22,10 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        setAll(
+          cookiesToSet: { name: string; value: string; options: CookieOptions }[],
+          headersToSet?: Record<string, string>,
+        ) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
@@ -30,12 +33,16 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
+          Object.entries(headersToSet ?? {}).forEach(([name, value]) =>
+            response.headers.set(name, value),
+          );
         },
       },
     });
 
-    // Refresh session so it doesn't expire while user is active
-    await supabase.auth.getUser();
+    // Validate and refresh the signed JWT before Server Components use it.
+    await supabase.auth.getClaims();
+    response.headers.set("Cache-Control", "private, no-store");
     return response;
   } catch {
     // Never let an auth hiccup crash the entire edge middleware

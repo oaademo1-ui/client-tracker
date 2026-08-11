@@ -34,7 +34,7 @@ function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }
 
-export default function TrackerApp() {
+export default function TrackerApp({ userId, userEmail }: { userId: string; userEmail: string }) {
   const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const supabase = useMemo(() => configured ? createClient() : null, [configured]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -89,14 +89,14 @@ export default function TrackerApp() {
   async function saveTask(event: FormEvent) {
     event.preventDefault(); if (!supabase || !taskForm.title.trim()) return;
     setSaving(true); setError(null);
-    const payload = { ...taskForm, title: taskForm.title.trim(), notes: taskForm.notes.trim() || null, due_date: taskForm.due_date || null, assignee_id: taskForm.assignee_id || null };
+    const payload = { ...taskForm, user_id: userId, title: taskForm.title.trim(), notes: taskForm.notes.trim() || null, due_date: taskForm.due_date || null, assignee_id: taskForm.assignee_id || null };
     if (editing) {
       const { error: updateError } = await supabase.from("tasks").update(payload).eq("id", editing.id);
-      if (!updateError) await supabase.from("activities").insert({ task_id: editing.id, action: "updated", description: "Task details updated" });
+      if (!updateError) await supabase.from("activities").insert({ user_id: userId, task_id: editing.id, action: "updated", description: "Task details updated" });
       if (updateError) setError(updateError.message); else { setNotice("Task updated"); setTaskModal(false); await loadData(); }
     } else {
       const { data, error: insertError } = await supabase.from("tasks").insert(payload).select("id").single();
-      if (!insertError && data) await supabase.from("activities").insert({ task_id: data.id, action: "created", description: "Task created" });
+      if (!insertError && data) await supabase.from("activities").insert({ user_id: userId, task_id: data.id, action: "created", description: "Task created" });
       if (insertError) setError(insertError.message); else { setNotice("Task created"); setTaskModal(false); await loadData(); }
     }
     setSaving(false);
@@ -105,7 +105,7 @@ export default function TrackerApp() {
   async function changeStatus(task: Task, status: TaskStatus) {
     if (!supabase) return;
     const { error: updateError } = await supabase.from("tasks").update({ status }).eq("id", task.id);
-    if (!updateError) await supabase.from("activities").insert({ task_id: task.id, action: status === "completed" ? "completed" : "updated", description: status === "completed" ? "Task marked as completed" : `Status changed to ${status.replace("_", " ")}` });
+    if (!updateError) await supabase.from("activities").insert({ user_id: userId, task_id: task.id, action: status === "completed" ? "completed" : "updated", description: status === "completed" ? "Task marked as completed" : `Status changed to ${status.replace("_", " ")}` });
     if (updateError) setError(updateError.message); else { setNotice(status === "completed" ? "Task completed" : "Status updated"); await loadData(); }
   }
 
@@ -118,7 +118,7 @@ export default function TrackerApp() {
   async function savePerson(event: FormEvent) {
     event.preventDefault(); if (!supabase || !personForm.name.trim()) return;
     setSaving(true);
-    const { error: insertError } = await supabase.from("people").insert({ name: personForm.name.trim(), email: personForm.email.trim() || null, role: personForm.role.trim() || null });
+    const { error: insertError } = await supabase.from("people").insert({ user_id: userId, name: personForm.name.trim(), email: personForm.email.trim() || null, role: personForm.role.trim() || null });
     if (insertError) setError(insertError.message); else { setPersonForm({ name: "", email: "", role: "" }); setNotice("Team member added"); await loadData(); }
     setSaving(false);
   }
@@ -129,11 +129,17 @@ export default function TrackerApp() {
     if (deleteError) setError(deleteError.message); else { setNotice("Team member removed"); await loadData(); }
   }
 
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    window.location.assign("/login");
+  }
+
   return <main className="min-h-screen bg-[#f7f7f4] text-[#22231f]">
     <header className="border-b border-[#deded8] bg-[#fbfbf8]">
       <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-5 md:px-10">
         <div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-lg bg-[#20211e] text-sm font-semibold text-white">CT</div><div><h1 className="text-[15px] font-semibold tracking-tight">Client Tracker</h1><p className="text-xs text-[#85867f]">Team task board</p></div></div>
-        <div className="flex items-center gap-2"><button onClick={() => setPeopleModal(true)} className="button-secondary"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary"><Icon name="plus" /> New task</button></div>
+        <div className="flex items-center gap-2"><span className="hidden max-w-48 truncate text-xs text-[#777970] lg:inline" title={userEmail}>{userEmail}</span><button onClick={() => setPeopleModal(true)} className="button-secondary"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary"><Icon name="plus" /> New task</button><button onClick={() => void signOut()} className="button-secondary">Sign out</button></div>
       </div>
     </header>
 

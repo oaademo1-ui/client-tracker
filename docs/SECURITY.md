@@ -6,8 +6,9 @@
 - No secrets in client bundles or environment variables exposed to browser
 
 ## Permission Model
-- **v1 (demo):** all tables open read/write via permissive RLS policies — no login required, seed data visible
-- **Lock-down (later sprint):** replace open policies with `auth.uid() = user_id` on every table; users only see their own tasks/people/activities
+- **Current:** email/password and magic-link authentication are required. Every table uses `auth.uid() = user_id` RLS policies; users only see and mutate their own tasks, people, and activities.
+- **Relational ownership:** composite foreign keys prevent a task from referencing another user's person and prevent an activity from referencing another user's task.
+- **Legacy demo:** the original anonymous seed rows and permissive policies were removed in the Sprint 3 lockdown migration.
 - Agent (when added) inherits the logged-in user's permissions — can only act on rows the user owns
 
 ## Approved-Tools Rule

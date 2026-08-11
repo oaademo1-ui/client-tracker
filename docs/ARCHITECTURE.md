@@ -6,9 +6,9 @@
 - **Hosting:** Vercel
 
 ## Build Now vs Later
-**Now (v1):** Task CRUD, person management, status board, overdue highlighting, seed demo data, open reads/writes.
+**Now:** Task CRUD, person management, status board, overdue highlighting, filters/sorting, activity history, authentication, and per-user data isolation.
 
-**Next:** Login/signup, per-user data isolation, task search/filter, sort by due date/priority.
+**Completed:** Email/password and magic-link authentication with strict owner-scoped RLS.
 
 **Later:** Activity timeline view, recurring tasks, email reminders, export to CSV.
 

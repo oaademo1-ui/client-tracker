@@ -29,15 +29,15 @@
 
 **Definition of Done:** User filters tasks by assignee, sees only Sarah's tasks, sorts by due date, and sees activity history on a task.
 
-## Sprint 3 — Lock It Down (Auth & RLS)
+## Sprint 3 — Lock It Down (Auth & RLS) ✅
 **Goal:** Secure the app for real multi-user use.
 
-- [ ] Add Supabase Auth (email/password + magic link)
-- [ ] Sign up / log in / log out screens
-- [ ] Replace open RLS with `auth.uid() = user_id` on all tables
-- [ ] Seed data scoped to first user or removed
-- [ ] Redirect unauthenticated users to login (app no longer public)
-- [ ] User can only see their own tasks/people/activities
+- [x] Add Supabase Auth (email/password + magic link)
+- [x] Sign up / log in / log out screens
+- [x] Replace open RLS with `auth.uid() = user_id` on all tables
+- [x] Seed data scoped to first user or removed
+- [x] Redirect unauthenticated users to login (app no longer public)
+- [x] User can only see their own tasks/people/activities
 
 **Definition of Done:** Two different users log in and each sees only their own tasks. No cross-user data leakage.
 
