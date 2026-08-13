@@ -10,7 +10,7 @@ input, textarea, select { width: 100%; border: 1px solid #d8d8d1; border-radius:
 input:focus, textarea:focus, select:focus { border-color: #86877f; box-shadow: 0 0 0 3px rgba(90,91,84,.1); }
 textarea { resize: vertical; }
 .filter-select { width: auto; min-width: 8.5rem; padding-right: 2rem; }
-.button-primary, .button-secondary { display: inline-flex; width: auto; align-items: center; justify-content: center; gap: .45rem; border-radius: .5rem; padding: .62rem .9rem; font-size: .8rem; font-weight: 600; transition: all .15s ease; }
+.button-primary, .button-secondary { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: .5rem; padding: .62rem .9rem; font-size: .8rem; font-weight: 600; transition: all .15s ease; }
 .button-primary { border: 1px solid #242520; background: #242520; color: white; box-shadow: 0 1px 2px rgba(20,20,18,.15); }
 .button-primary:hover { background: #383934; }
 .button-secondary { border: 1px solid #d6d6cf; background: #fbfbf8; color: #4e5049; }
