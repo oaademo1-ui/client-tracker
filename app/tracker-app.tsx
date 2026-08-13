@@ -21,7 +21,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout" | "sparkle" | "trash"; size?: number }) {
+function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout" | "trash"; size?: number }) {
   const paths = {
     plus: <path d="M12 5v14M5 12h14" />,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
@@ -32,7 +32,6 @@ function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more
     activity: <><path d="M3 12h4l2-7 4 14 2-7h6" /></>,
     filter: <><path d="M4 6h16M7 12h10M10 18h4" /></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>,
-    sparkle: <><path d="M12 3v4M12 17v4M3 12h4M17 12h4" /><path d="m7 7 2 2M15 15l2 2M17 7l-2 2M9 15l-2 2" /></>,
     trash: <><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m3 0-.9 13.1a2 2 0 0 1-2 1.9H8.9a2 2 0 0 1-2-1.9L6 7h12Z" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
@@ -60,10 +59,6 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
   const [sort, setSort] = useState("due");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeStatus, setActiveStatus] = useState<TaskStatus>("todo");
-  const [assistantText, setAssistantText] = useState("");
-  const [assistantLoading, setAssistantLoading] = useState(false);
-  const [assistantError, setAssistantError] = useState<string | null>(null);
-  const [assistantConfidence, setAssistantConfidence] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
@@ -93,28 +88,8 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
     return (a.due_date || "9999-12-31").localeCompare(b.due_date || "9999-12-31");
   }), [tasks, assigneeFilter, priorityFilter, statusFilter, sort]);
 
-  function openNewTask() { setEditing(null); setTaskForm(emptyTask); setAssistantText(""); setAssistantError(null); setAssistantConfidence(null); setTaskModal(true); }
+  function openNewTask() { setEditing(null); setTaskForm(emptyTask); setTaskModal(true); }
   function openEdit(task: Task) { setEditing(task); setTaskForm({ title: task.title, notes: task.notes || "", due_date: task.due_date || "", priority: task.priority, status: task.status, assignee_id: task.assignee_id || "" }); setTaskModal(true); }
-
-  async function draftWithAssistant() {
-    if (!assistantText.trim() || assistantLoading) return;
-    setAssistantLoading(true); setAssistantError(null);
-    try {
-      const response = await fetch("/api/assistant/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: assistantText.trim(), people: people.map(p => ({ id: p.id, name: p.name })) }),
-      });
-      const draft = await response.json();
-      if (!response.ok) { setAssistantError(draft.error || "Couldn't draft that task."); return; }
-      setTaskForm({ title: draft.title, notes: draft.notes || "", due_date: draft.due_date || "", priority: draft.priority, status: "todo", assignee_id: draft.assignee_id || "" });
-      setAssistantConfidence(draft.confidence);
-    } catch {
-      setAssistantError("Couldn't reach the smart assistant.");
-    } finally {
-      setAssistantLoading(false);
-    }
-  }
 
   async function saveTask(event: FormEvent) {
     event.preventDefault(); if (!supabase || !taskForm.title.trim()) return;
@@ -205,7 +180,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
       })}</div>}
     </section>
 
-    {taskModal && <Modal title={editing ? "Edit task" : "Create a new task"} subtitle={editing ? "Update the details and save your changes." : "Add a clear owner, priority, and due date."} onClose={() => setTaskModal(false)}>{!editing && <div className="mb-5 rounded-xl border border-[#e4dfc9] bg-[#faf6e8] p-4"><p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[#8a6f1f]"><Icon name="sparkle" size={14} /> Smart assistant</p><textarea rows={2} value={assistantText} onChange={e => setAssistantText(e.target.value)} placeholder="Describe it in plain English — e.g. “remind Sarah to call Acme about the invoice by Friday, it's urgent”" /><div className="mt-2 flex items-center gap-3"><button type="button" onClick={() => void draftWithAssistant()} disabled={assistantLoading || !assistantText.trim()} className="button-secondary !border-[#d9c98a] !bg-[#f4ecc8] !text-[#6b551a] hover:!bg-[#efe4b3]"><Icon name="sparkle" size={14} /> {assistantLoading ? "Drafting…" : "Draft with AI"}</button>{assistantConfidence !== null && <span className="text-xs text-[#8a6f1f]">Drafted below — review before saving ({Math.round(assistantConfidence * 100)}% confidence)</span>}</div>{assistantError && <p className="mt-2 text-xs text-[#a43d3d]">{assistantError}</p>}</div>}<form onSubmit={saveTask} className="space-y-4"><Field label="Task title"><input autoFocus required value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="e.g. Follow up with Acme" /></Field><Field label="Notes"><textarea rows={3} value={taskForm.notes} onChange={e => setTaskForm({ ...taskForm, notes: e.target.value })} placeholder="Add helpful context…" /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Due date"><input type="date" value={taskForm.due_date} onChange={e => setTaskForm({ ...taskForm, due_date: e.target.value })} /></Field><Field label="Assignee"><select value={taskForm.assignee_id} onChange={e => setTaskForm({ ...taskForm, assignee_id: e.target.value })}><option value="">Unassigned</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Priority"><select value={taskForm.priority} onChange={e => setTaskForm({ ...taskForm, priority: e.target.value as Priority })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></Field><Field label="Status"><select value={taskForm.status} onChange={e => setTaskForm({ ...taskForm, status: e.target.value as TaskStatus })}>{statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></Field></div><div className="flex justify-end gap-2 border-t border-[#e5e5df] pt-4"><button type="button" className="button-secondary" onClick={() => setTaskModal(false)}>Cancel</button><button disabled={saving} className="button-primary">{saving ? "Saving…" : editing ? "Save changes" : "Create task"}</button></div></form></Modal>}
+    {taskModal && <Modal title={editing ? "Edit task" : "Create a new task"} subtitle={editing ? "Update the details and save your changes." : "Add a clear owner, priority, and due date."} onClose={() => setTaskModal(false)}><form onSubmit={saveTask} className="space-y-4"><Field label="Task title"><input autoFocus required value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="e.g. Follow up with Acme" /></Field><Field label="Notes"><textarea rows={3} value={taskForm.notes} onChange={e => setTaskForm({ ...taskForm, notes: e.target.value })} placeholder="Add helpful context…" /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Due date"><input type="date" value={taskForm.due_date} onChange={e => setTaskForm({ ...taskForm, due_date: e.target.value })} /></Field><Field label="Assignee"><select value={taskForm.assignee_id} onChange={e => setTaskForm({ ...taskForm, assignee_id: e.target.value })}><option value="">Unassigned</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Priority"><select value={taskForm.priority} onChange={e => setTaskForm({ ...taskForm, priority: e.target.value as Priority })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></Field><Field label="Status"><select value={taskForm.status} onChange={e => setTaskForm({ ...taskForm, status: e.target.value as TaskStatus })}>{statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></Field></div><div className="flex justify-end gap-2 border-t border-[#e5e5df] pt-4"><button type="button" className="button-secondary" onClick={() => setTaskModal(false)}>Cancel</button><button disabled={saving} className="button-primary">{saving ? "Saving…" : editing ? "Save changes" : "Create task"}</button></div></form></Modal>}
 
     {peopleModal && <Modal title="People" subtitle="Manage the team members who can own tasks." onClose={() => setPeopleModal(false)}><form onSubmit={savePerson} className="mb-6 grid gap-3 rounded-lg bg-[#f4f4ef] p-4 sm:grid-cols-3"><Field label="Name"><input required value={personForm.name} onChange={e => setPersonForm({ ...personForm, name: e.target.value })} placeholder="Full name" /></Field><Field label="Email"><input type="email" value={personForm.email} onChange={e => setPersonForm({ ...personForm, email: e.target.value })} placeholder="name@company.com" /></Field><Field label="Role"><input value={personForm.role} onChange={e => setPersonForm({ ...personForm, role: e.target.value })} placeholder="e.g. Operations" /></Field><button disabled={saving} className="button-primary sm:col-start-3"><Icon name="plus" /> Add person</button></form><div className="divide-y divide-[#e7e7e1]">{people.map(p => <div key={p.id} className="flex items-center gap-3 py-3"><div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e6e2d7] text-xs font-semibold">{p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}</div><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{p.name}</p><p className="truncate text-xs text-[#85867f]">{[p.role, p.email].filter(Boolean).join(" · ")}</p></div><button onClick={() => void deletePerson(p)} className="rounded-md p-2 text-[#999991] hover:bg-[#f4e7e5] hover:text-[#a33f3f]" aria-label={`Remove ${p.name}`}><Icon name="x" /></button></div>)}{people.length === 0 && <p className="py-8 text-center text-sm text-[#888981]">No people yet.</p>}</div></Modal>}
 
