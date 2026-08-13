@@ -13,6 +13,12 @@ function loginRedirect(kind: "error" | "message", value: string) {
   redirect(`/login?${kind}=${encodeURIComponent(value)}`);
 }
 
+function emailErrorMessage(message: string) {
+  return message.toLowerCase().includes("rate limit")
+    ? "Email limit reached. Please wait for the quota to reset (usually within an hour), then try once more."
+    : message;
+}
+
 export async function login(formData: FormData) {
   const email = requiredField(formData, "email");
   const password = requiredField(formData, "password");
@@ -37,7 +43,7 @@ export async function signup(formData: FormData) {
     password,
     options: { emailRedirectTo: `${origin}/auth/callback` },
   });
-  if (error) loginRedirect("error", error.message);
+  if (error) loginRedirect("error", emailErrorMessage(error.message));
   if (data.user && data.user.identities?.length === 0) {
     loginRedirect("message", "This email already has an account. Use a magic link or set a password below.");
   }
@@ -54,12 +60,9 @@ export async function sendMagicLink(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback?next=/reset-password?source=magic-link`,
-      shouldCreateUser: true,
-    },
+    options: { emailRedirectTo: `${origin}/auth/callback`, shouldCreateUser: true },
   });
-  if (error) loginRedirect("error", error.message);
+  if (error) loginRedirect("error", emailErrorMessage(error.message));
   loginRedirect("message", "Magic link sent. Open it to access your account and optionally set a password.");
 }
 
@@ -71,8 +74,8 @@ export async function requestPasswordReset(formData: FormData) {
   const origin = requestHeaders.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+    redirectTo: `${origin}/auth/callback`,
   });
-  if (error) loginRedirect("error", error.message);
+  if (error) loginRedirect("error", emailErrorMessage(error.message));
   loginRedirect("message", "Password setup email sent. Open it to choose a password for this account.");
 }
