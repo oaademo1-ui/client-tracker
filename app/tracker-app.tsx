@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Activity, Person, Priority, Task, TaskStatus } from "@/lib/types";
 
@@ -21,7 +21,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout" | "sparkle"; size?: number }) {
+function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout" | "sparkle" | "trash"; size?: number }) {
   const paths = {
     plus: <path d="M12 5v14M5 12h14" />,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
@@ -33,6 +33,7 @@ function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more
     filter: <><path d="M4 6h16M7 12h10M10 18h4" /></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>,
     sparkle: <><path d="M12 3v4M12 17v4M3 12h4M17 12h4" /><path d="m7 7 2 2M15 15l2 2M17 7l-2 2M9 15l-2 2" /></>,
+    trash: <><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m3 0-.9 13.1a2 2 0 0 1-2 1.9H8.9a2 2 0 0 1-2-1.9L6 7h12Z" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }
@@ -58,6 +59,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState("due");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activeStatus, setActiveStatus] = useState<TaskStatus>("todo");
   const [assistantText, setAssistantText] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantError, setAssistantError] = useState<string | null>(null);
@@ -130,6 +132,14 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
     setSaving(false);
   }
 
+  async function quickAddTask(status: TaskStatus, title: string) {
+    if (!supabase || !title.trim()) return;
+    const payload = { title: title.trim(), status, priority: "medium" as Priority, user_id: userId, notes: null, due_date: null, assignee_id: null };
+    const { data, error: insertError } = await supabase.from("tasks").insert(payload).select("id").single();
+    if (!insertError && data) await supabase.from("activities").insert({ user_id: userId, task_id: data.id, action: "created", description: "Task created" });
+    if (insertError) setError(insertError.message); else { setNotice("Task added"); await loadData(); }
+  }
+
   async function changeStatus(task: Task, status: TaskStatus) {
     if (!supabase) return;
     const { error: updateError } = await supabase.from("tasks").update({ status }).eq("id", task.id);
@@ -169,6 +179,13 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
         <div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-lg bg-[#20211e] text-sm font-semibold text-white">CT</div><div><h1 className="text-[15px] font-semibold tracking-tight">Client Tracker</h1><p className="text-xs text-[#85867f]">Team task board</p></div></div>
         <div className="flex items-center gap-1.5 sm:gap-2"><span className="hidden max-w-48 truncate text-xs text-[#777970] lg:inline" title={userEmail}>{userEmail}</span><button onClick={() => setPeopleModal(true)} className="button-secondary mobile-icon-button" aria-label="Manage people"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary hidden sm:inline-flex"><Icon name="plus" /> New task</button><button onClick={() => void signOut()} className="button-secondary mobile-icon-button" aria-label="Sign out"><Icon name="logout" /><span className="hidden sm:inline">Sign out</span></button></div>
       </div>
+      <div role="tablist" aria-label="Task lists" className="grid grid-cols-3 gap-1 border-t border-[#e5e5df] bg-[#f4f4ef] p-1.5 sm:hidden">
+        {statuses.map(column => {
+          const count = filteredTasks.filter(t => t.status === column.id).length;
+          const active = activeStatus === column.id;
+          return <button key={column.id} role="tab" aria-selected={active} onClick={() => setActiveStatus(column.id)} className={`flex min-h-9 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-semibold transition ${active ? "bg-white text-[#22231f] shadow-sm" : "text-[#83847c]"}`}><span className={`size-1.5 rounded-full ${column.dot}`} />{column.label}<span className="tabular-nums text-[#a3a49b]">{count}</span></button>;
+        })}
+      </div>
     </header>
 
     <section className="mx-auto max-w-[1500px] px-4 py-5 pb-24 sm:px-5 sm:py-8 md:px-10 md:py-11 md:pb-11">
@@ -181,10 +198,10 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
       </div></div>
 
       {error && <div role="alert" className="mb-6 flex items-center justify-between rounded-lg border border-[#e2b4b4] bg-[#fff4f2] px-4 py-3 text-sm text-[#8d3535]"><span>{error}</span><button onClick={() => void loadData()} className="font-semibold underline">Retry</button></div>}
-      {loading ? <div className="grid gap-4 md:grid-cols-3">{statuses.map(s => <div key={s.id} className="h-64 animate-pulse rounded-xl bg-[#ecece7]" />)}</div> :
-      <div className="mobile-board grid gap-5 md:grid-cols-3">{statuses.map(column => {
+      {loading ? <div className="grid gap-4 sm:grid-cols-3">{statuses.map(s => <div key={s.id} className="h-64 animate-pulse rounded-xl bg-[#ecece7]" />)}</div> :
+      <div className="grid gap-5 sm:grid-cols-3">{statuses.map(column => {
         const columnTasks = filteredTasks.filter(t => t.status === column.id);
-        return <section key={column.id} className="min-w-0"><div className="mb-3 flex items-center gap-2 px-1"><span className={`size-2 rounded-full ${column.dot}`} /><h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[#62645d]">{column.label}</h3><span className="ml-auto text-xs tabular-nums text-[#96978f]">{columnTasks.length}</span></div><div className="space-y-3">{columnTasks.map(task => <TaskCard key={task.id} task={task} onEdit={() => openEdit(task)} onDelete={() => void deleteTask(task)} onStatus={status => void changeStatus(task, status)} onActivity={() => setActivityTask(task)} />)}{columnTasks.length === 0 && <button onClick={openNewTask} className="w-full rounded-xl border border-dashed border-[#d4d4cd] px-4 py-10 text-sm text-[#9a9b94] transition hover:border-[#aaa9a1] hover:text-[#65665f]">No tasks yet — create your first task</button>}</div></section>;
+        return <section key={column.id} className={`min-w-0 ${column.id === activeStatus ? "" : "hidden"} sm:block`}><div className="mb-3 flex items-center gap-2 px-1"><span className={`size-2 rounded-full ${column.dot}`} /><h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[#62645d]">{column.label}</h3><span className="ml-auto text-xs tabular-nums text-[#96978f]">{columnTasks.length}</span></div><div className="space-y-3">{columnTasks.map(task => <TaskCard key={task.id} task={task} onEdit={() => openEdit(task)} onDelete={() => void deleteTask(task)} onStatus={status => void changeStatus(task, status)} onActivity={() => setActivityTask(task)} />)}{columnTasks.length === 0 && <button onClick={openNewTask} className="w-full rounded-xl border border-dashed border-[#d4d4cd] px-4 py-10 text-sm text-[#9a9b94] transition hover:border-[#aaa9a1] hover:text-[#65665f]">No tasks yet — create your first task</button>}<QuickAdd onAdd={title => void quickAddTask(column.id, title)} /></div></section>;
       })}</div>}
     </section>
 
@@ -198,15 +215,72 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
   </main>;
 }
 
+const SWIPE_THRESHOLD = 84;
+
 function TaskCard({ task, onEdit, onDelete, onStatus, onActivity }: { task: Task; onEdit: () => void; onDelete: () => void; onStatus: (status: TaskStatus) => void; onActivity: () => void }) {
   const overdue = task.status !== "completed" && !!task.due_date && task.due_date < todayLocal();
   const [menu, setMenu] = useState(false);
-  return <article className={`group relative rounded-xl border bg-[#fdfdfb] p-4 shadow-[0_1px_2px_rgba(35,35,30,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_5px_18px_rgba(35,35,30,.07)] ${overdue ? "border-[#dfb4af]" : "border-[#deded8]"}`}>
-    <div className="mb-3 flex items-start gap-1 sm:gap-3"><button onClick={() => onStatus(task.status === "completed" ? "todo" : "completed")} aria-label={task.status === "completed" ? "Reopen task" : "Complete task"} className={`task-complete-button grid shrink-0 place-items-center rounded-full border transition ${task.status === "completed" ? "border-[#4f8f72] bg-[#4f8f72] text-white" : "border-[#c5c5bd] hover:border-[#4f8f72]"}`}>{task.status === "completed" && <Icon name="check" size={13} />}</button><h4 className={`min-w-0 flex-1 pt-2 text-[14px] font-semibold leading-5 sm:pt-0 ${task.status === "completed" ? "text-[#8d8e87] line-through" : ""}`}>{task.title}</h4><div className="relative"><button onClick={() => setMenu(!menu)} aria-label="Task actions" aria-expanded={menu} className="task-action-button grid place-items-center rounded text-[#94958e] hover:bg-[#f0f0eb] hover:text-[#44453f]"><Icon name="more" /></button>{menu && <div className="absolute right-0 top-11 z-10 w-40 rounded-lg border border-[#deded8] bg-white p-1 text-sm shadow-lg sm:top-7 sm:w-36"><button onClick={() => { setMenu(false); onEdit(); }} className="menu-item">Edit task</button><button onClick={() => { setMenu(false); onActivity(); }} className="menu-item">View history</button><button onClick={() => { setMenu(false); onDelete(); }} className="menu-item text-[#a43d3d]">Delete task</button></div>}</div></div>
-    {task.notes && <p className="mb-4 line-clamp-2 text-xs leading-5 text-[#777970]">{task.notes}</p>}
-    <div className="flex flex-wrap items-center gap-2"><span className={`priority-${task.priority} rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.05em]`}>{task.priority}</span>{task.due_date && <span className={`flex items-center gap-1 text-[11px] font-medium ${overdue ? "text-[#ae4742]" : "text-[#777970]"}`}><Icon name="calendar" size={13} /> {overdue ? "Overdue · " : ""}{formatDate(task.due_date)}</span>}<span className="ml-auto flex items-center gap-1.5 text-[11px] text-[#6c6d66]"><span className="grid size-6 place-items-center rounded-full bg-[#ebe8df] text-[9px] font-semibold">{task.assignee?.name ? task.assignee.name.split(" ").map(n => n[0]).slice(0, 2).join("") : "—"}</span>{task.assignee?.name?.split(" ")[0] || "Unassigned"}</span></div>
-    {task.status !== "completed" && <div className="mt-3 border-t border-[#eeeeea] pt-2"><select aria-label={`Change status for ${task.title}`} value={task.status} onChange={e => onStatus(e.target.value as TaskStatus)} className="!border-0 !bg-transparent !px-0 text-[12px] font-medium text-[#777970] shadow-none"><option value="todo">To do</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select></div>}
-  </article>;
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const swipingRef = useRef(false);
+
+  function onTouchStart(event: React.TouchEvent) {
+    const touch = event.touches[0];
+    startRef.current = { x: touch.clientX, y: touch.clientY };
+    swipingRef.current = false;
+  }
+  function onTouchMove(event: React.TouchEvent) {
+    if (!startRef.current) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - startRef.current.x;
+    const dy = touch.clientY - startRef.current.y;
+    if (!swipingRef.current) {
+      if (Math.abs(dx) < 10) return;
+      if (Math.abs(dy) > Math.abs(dx)) { startRef.current = null; return; }
+      swipingRef.current = true;
+      setDragging(true);
+    }
+    setDragX(Math.max(-120, Math.min(120, dx)));
+  }
+  function onTouchEnd() {
+    if (!swipingRef.current) { startRef.current = null; return; }
+    setDragging(false);
+    if (dragX > SWIPE_THRESHOLD) onStatus(task.status === "completed" ? "todo" : "completed");
+    else if (dragX < -SWIPE_THRESHOLD) onDelete();
+    setDragX(0);
+    startRef.current = null;
+  }
+
+  return <div className="relative">
+    <div aria-hidden className="absolute inset-0 flex items-center justify-between rounded-xl px-6" style={{ background: dragX > 0 ? "#4f8f72" : dragX < 0 ? "#a43d3d" : "transparent" }}>
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-white" style={{ opacity: Math.min(1, Math.max(0, dragX - 12) / 60) }}><Icon name="check" size={16} /> {task.status === "completed" ? "Reopen" : "Complete"}</span>
+      <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-white" style={{ opacity: Math.min(1, Math.max(0, -dragX - 12) / 60) }}>Delete <Icon name="trash" size={16} /></span>
+    </div>
+    <article onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{ transform: `translateX(${dragX}px)`, transition: dragging ? "none" : "transform .25s ease" }} className={`group relative rounded-xl border bg-[#fdfdfb] p-4 shadow-[0_1px_2px_rgba(35,35,30,.04)] transition-shadow hover:-translate-y-0.5 hover:shadow-[0_5px_18px_rgba(35,35,30,.07)] ${overdue ? "border-[#dfb4af]" : "border-[#deded8]"}`}>
+      <div className="mb-3 flex items-start gap-1 sm:gap-3"><button onClick={() => onStatus(task.status === "completed" ? "todo" : "completed")} aria-label={task.status === "completed" ? "Reopen task" : "Complete task"} className={`task-complete-button grid shrink-0 place-items-center rounded-full border transition ${task.status === "completed" ? "border-[#4f8f72] bg-[#4f8f72] text-white" : "border-[#c5c5bd] hover:border-[#4f8f72]"}`}>{task.status === "completed" && <Icon name="check" size={13} />}</button><h4 className={`min-w-0 flex-1 pt-2 text-[14px] font-semibold leading-5 sm:pt-0 ${task.status === "completed" ? "text-[#8d8e87] line-through" : ""}`}>{task.title}</h4><div className="relative"><button onClick={() => setMenu(!menu)} aria-label="Task actions" aria-expanded={menu} className="task-action-button grid place-items-center rounded text-[#94958e] hover:bg-[#f0f0eb] hover:text-[#44453f]"><Icon name="more" /></button>{menu && <div className="absolute right-0 top-11 z-10 w-40 rounded-lg border border-[#deded8] bg-white p-1 text-sm shadow-lg sm:top-7 sm:w-36"><button onClick={() => { setMenu(false); onEdit(); }} className="menu-item">Edit task</button><button onClick={() => { setMenu(false); onActivity(); }} className="menu-item">View history</button><button onClick={() => { setMenu(false); onDelete(); }} className="menu-item text-[#a43d3d]">Delete task</button></div>}</div></div>
+      {task.notes && <p className="mb-4 line-clamp-2 text-xs leading-5 text-[#777970]">{task.notes}</p>}
+      <div className="flex flex-wrap items-center gap-2"><span className={`priority-${task.priority} rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.05em]`}>{task.priority}</span>{task.due_date && <span className={`flex items-center gap-1 text-[11px] font-medium ${overdue ? "text-[#ae4742]" : "text-[#777970]"}`}><Icon name="calendar" size={13} /> {overdue ? "Overdue · " : ""}{formatDate(task.due_date)}</span>}<span className="ml-auto flex items-center gap-1.5 text-[11px] text-[#6c6d66]"><span className="grid size-6 place-items-center rounded-full bg-[#ebe8df] text-[9px] font-semibold">{task.assignee?.name ? task.assignee.name.split(" ").map(n => n[0]).slice(0, 2).join("") : "—"}</span>{task.assignee?.name?.split(" ")[0] || "Unassigned"}</span></div>
+      {task.status !== "completed" && <div className="mt-3 border-t border-[#eeeeea] pt-2"><select aria-label={`Change status for ${task.title}`} value={task.status} onChange={e => onStatus(e.target.value as TaskStatus)} className="!border-0 !bg-transparent !px-0 text-[12px] font-medium text-[#777970] shadow-none"><option value="todo">To do</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select></div>}
+      <p className="mt-2 text-center text-[10px] text-[#c2c3ba] sm:hidden" aria-hidden>Swipe right to complete · left to delete</p>
+    </article>
+  </div>;
+}
+
+function QuickAdd({ onAdd }: { onAdd: (title: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!value.trim()) return;
+    onAdd(value);
+    setValue("");
+  }
+  if (!open) return <button onClick={() => setOpen(true)} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-sm font-medium text-[#8a8b83] transition hover:bg-[#efefe9] hover:text-[#4e5049]"><Icon name="plus" size={15} /> Add a card</button>;
+  return <form onSubmit={submit} className="mt-1 space-y-2 rounded-xl border border-[#deded8] bg-[#fdfdfb] p-2.5">
+    <input autoFocus value={value} onChange={e => setValue(e.target.value)} placeholder="Task title" onKeyDown={e => { if (e.key === "Escape") { setOpen(false); setValue(""); } }} />
+    <div className="flex gap-2"><button type="submit" className="button-primary !min-h-9 !py-1.5 !text-xs">Add card</button><button type="button" onClick={() => { setOpen(false); setValue(""); }} className="button-secondary !min-h-9 !py-1.5 !text-xs">Cancel</button></div>
+  </form>;
 }
 
 function Modal({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) {
