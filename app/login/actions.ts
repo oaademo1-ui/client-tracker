@@ -38,6 +38,9 @@ export async function signup(formData: FormData) {
     options: { emailRedirectTo: `${origin}/auth/callback` },
   });
   if (error) loginRedirect("error", error.message);
+  if (data.user && data.user.identities?.length === 0) {
+    loginRedirect("message", "This email already has an account. Use a magic link or set a password below.");
+  }
   if (data.session) redirect("/");
   loginRedirect("message", "Check your email to confirm your account.");
 }
@@ -55,4 +58,18 @@ export async function sendMagicLink(formData: FormData) {
   });
   if (error) loginRedirect("error", error.message);
   loginRedirect("message", "Magic link sent. Open it to create or access your account.");
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = requiredField(formData, "email");
+  if (!email) loginRedirect("error", "Enter your email address.");
+
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  });
+  if (error) loginRedirect("error", error.message);
+  loginRedirect("message", "Password setup email sent. Open it to choose a password for this account.");
 }

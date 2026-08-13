@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { login, sendMagicLink, signup } from "./actions";
+import { login, requestPasswordReset, sendMagicLink, signup } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +43,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <label className="block text-xs font-semibold text-[#5b5d55]"><span className="mb-1.5 block">Email for magic link</span><input name="email" type="email" autoComplete="email" required placeholder="you@company.com" /></label>
           <button className="button-secondary w-full">Continue with magic link</button>
           <p className="text-center text-xs leading-5 text-[#85867f]">New here? The link creates your account automatically.</p>
+        </form>
+
+        <div className="my-6 h-px bg-[#e1e1db]" />
+
+        <form action={requestPasswordReset} className="space-y-3">
+          <label className="block text-xs font-semibold text-[#5b5d55]"><span className="mb-1.5 block">Set or reset your password</span><input name="email" type="email" autoComplete="email" required placeholder="you@company.com" /></label>
+          <button className="button-secondary w-full">Email me a password setup link</button>
+          <p className="text-center text-xs leading-5 text-[#85867f]">Use this if you first joined with a magic link or forgot your password.</p>
         </form>
       </section>
     </main>
