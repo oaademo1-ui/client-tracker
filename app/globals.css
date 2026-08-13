@@ -20,6 +20,8 @@ textarea { resize: vertical; }
 .priority-high { background: #f4dfdc; color: #9b433e; }
 .priority-medium { background: #f2e9d3; color: #8a681f; }
 .priority-low { background: #e2ece6; color: #47735c; }
+.task-complete-button { width: 1.25rem; height: 1.25rem; margin-top: .125rem; }
+.task-action-button { width: 1.5rem; height: 1.5rem; }
 @media (max-width: 640px) {
   input, textarea, select { min-height: 44px; font-size: 16px; }
   .button-primary, .button-secondary { min-height: 44px; }
@@ -35,9 +37,19 @@ textarea { resize: vertical; }
     padding: .25rem 1rem 1.25rem;
     scroll-padding-inline: 1rem;
     scroll-snap-type: x mandatory;
-    scrollbar-width: thin;
+    scrollbar-width: none;
     overscroll-behavior-inline: contain;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
   }
+  .mobile-board::-webkit-scrollbar { display: none; }
   .mobile-board > section { scroll-snap-align: start; }
   .menu-item { min-height: 44px; display: flex; align-items: center; }
+  .task-complete-button, .task-action-button { width: 44px; height: 44px; margin-top: 0; }
+  form .button-primary, form .button-secondary { flex: 1 1 0; }
+  article { content-visibility: auto; contain-intrinsic-size: auto 190px; }
+}
+
+@media (hover: none) {
+  article:hover { transform: none !important; }
 }
