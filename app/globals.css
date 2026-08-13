@@ -20,4 +20,24 @@ textarea { resize: vertical; }
 .priority-high { background: #f4dfdc; color: #9b433e; }
 .priority-medium { background: #f2e9d3; color: #8a681f; }
 .priority-low { background: #e2ece6; color: #47735c; }
-@media (max-width: 640px) { select { min-height: 40px; } .filter-select { flex: 1 1 calc(50% - .5rem); min-width: 0; } }
+@media (max-width: 640px) {
+  input, textarea, select { min-height: 44px; font-size: 16px; }
+  .button-primary, .button-secondary { min-height: 44px; }
+  .mobile-icon-button { min-width: 44px; padding-inline: .7rem; }
+  .filter-select { flex: 1 1 calc(50% - .5rem); min-width: 0; }
+  .mobile-board {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(84vw, 1fr);
+    grid-template-columns: none;
+    margin-inline: -1rem;
+    overflow-x: auto;
+    padding: .25rem 1rem 1.25rem;
+    scroll-padding-inline: 1rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    overscroll-behavior-inline: contain;
+  }
+  .mobile-board > section { scroll-snap-align: start; }
+  .menu-item { min-height: 44px; display: flex; align-items: center; }
+}

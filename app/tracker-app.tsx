@@ -21,7 +21,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity"; size?: number }) {
+function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout"; size?: number }) {
   const paths = {
     plus: <path d="M12 5v14M5 12h14" />,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
@@ -30,6 +30,8 @@ function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more
     check: <path d="m5 12 4 4L19 6" />,
     x: <path d="M18 6 6 18M6 6l12 12" />,
     activity: <><path d="M3 12h4l2-7 4 14 2-7h6" /></>,
+    filter: <><path d="M4 6h16M7 12h10M10 18h4" /></>,
+    logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }
@@ -54,6 +56,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState("due");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
@@ -136,15 +139,15 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
   }
 
   return <main className="min-h-screen bg-[#f7f7f4] text-[#22231f]">
-    <header className="border-b border-[#deded8] bg-[#fbfbf8]">
-      <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-5 md:px-10">
+    <header className="sticky top-0 z-30 border-b border-[#deded8] bg-[#fbfbf8]/95 backdrop-blur-md">
+      <div className="mx-auto flex max-w-[1500px] items-center justify-between px-4 py-3 sm:px-5 sm:py-5 md:px-10">
         <div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-lg bg-[#20211e] text-sm font-semibold text-white">CT</div><div><h1 className="text-[15px] font-semibold tracking-tight">Client Tracker</h1><p className="text-xs text-[#85867f]">Team task board</p></div></div>
-        <div className="flex items-center gap-2"><span className="hidden max-w-48 truncate text-xs text-[#777970] lg:inline" title={userEmail}>{userEmail}</span><button onClick={() => setPeopleModal(true)} className="button-secondary"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary"><Icon name="plus" /> New task</button><button onClick={() => void signOut()} className="button-secondary">Sign out</button></div>
+        <div className="flex items-center gap-1.5 sm:gap-2"><span className="hidden max-w-48 truncate text-xs text-[#777970] lg:inline" title={userEmail}>{userEmail}</span><button onClick={() => setPeopleModal(true)} className="button-secondary mobile-icon-button" aria-label="Manage people"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary hidden sm:inline-flex"><Icon name="plus" /> New task</button><button onClick={() => void signOut()} className="button-secondary mobile-icon-button" aria-label="Sign out"><Icon name="logout" /><span className="hidden sm:inline">Sign out</span></button></div>
       </div>
     </header>
 
-    <section className="mx-auto max-w-[1500px] px-5 py-8 md:px-10 md:py-11">
-      <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-3"><h2 className="text-3xl font-semibold tracking-[-0.04em]">Good morning</h2>{overdueCount > 0 && <span className="rounded-full bg-[#f6dddd] px-2.5 py-1 text-xs font-semibold text-[#9d3f3f]">{overdueCount} overdue</span>}</div><p className="text-sm text-[#777970]">Here’s what your team is working on.</p></div><div className="flex flex-wrap gap-2">
+    <section className="mx-auto max-w-[1500px] px-4 py-5 pb-24 sm:px-5 sm:py-8 md:px-10 md:py-11 md:pb-11">
+      <div className="mb-5 flex flex-col justify-between gap-4 md:mb-8 md:flex-row md:items-end"><div><div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-2 sm:gap-3"><h2 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">Good morning</h2>{overdueCount > 0 && <span className="rounded-full bg-[#f6dddd] px-2.5 py-1 text-xs font-semibold text-[#9d3f3f]">{overdueCount} overdue</span>}</div><p className="text-sm text-[#777970]">Here’s what your team is working on.</p></div><button className="button-secondary flex w-full justify-between sm:hidden" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen}><span className="flex items-center gap-2"><Icon name="filter" /> Filter and sort</span><span className="text-[#94958e]">{hasFilters ? "Active" : filtersOpen ? "Hide" : "Show"}</span></button><div className={`${filtersOpen ? "flex" : "hidden"} flex-wrap gap-2 sm:flex`}>
         <select className="filter-select" aria-label="Filter by assignee" value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}><option value="all">All people</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         <select className="filter-select" aria-label="Filter by priority" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}><option value="all">All priorities</option><option value="high">High priority</option><option value="medium">Medium priority</option><option value="low">Low priority</option></select>
         <select className="filter-select" aria-label="Filter by status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="all">All statuses</option>{statuses.map(s => <option value={s.id} key={s.id}>{s.label}</option>)}</select>
@@ -154,7 +157,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
 
       {error && <div role="alert" className="mb-6 flex items-center justify-between rounded-lg border border-[#e2b4b4] bg-[#fff4f2] px-4 py-3 text-sm text-[#8d3535]"><span>{error}</span><button onClick={() => void loadData()} className="font-semibold underline">Retry</button></div>}
       {loading ? <div className="grid gap-4 md:grid-cols-3">{statuses.map(s => <div key={s.id} className="h-64 animate-pulse rounded-xl bg-[#ecece7]" />)}</div> :
-      <div className="grid gap-5 md:grid-cols-3">{statuses.map(column => {
+      <div className="mobile-board grid gap-5 md:grid-cols-3">{statuses.map(column => {
         const columnTasks = filteredTasks.filter(t => t.status === column.id);
         return <section key={column.id} className="min-w-0"><div className="mb-3 flex items-center gap-2 px-1"><span className={`size-2 rounded-full ${column.dot}`} /><h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[#62645d]">{column.label}</h3><span className="ml-auto text-xs tabular-nums text-[#96978f]">{columnTasks.length}</span></div><div className="space-y-3">{columnTasks.map(task => <TaskCard key={task.id} task={task} onEdit={() => openEdit(task)} onDelete={() => void deleteTask(task)} onStatus={status => void changeStatus(task, status)} onActivity={() => setActivityTask(task)} />)}{columnTasks.length === 0 && <button onClick={openNewTask} className="w-full rounded-xl border border-dashed border-[#d4d4cd] px-4 py-10 text-sm text-[#9a9b94] transition hover:border-[#aaa9a1] hover:text-[#65665f]">No tasks yet — create your first task</button>}</div></section>;
       })}</div>}
@@ -165,7 +168,8 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
     {peopleModal && <Modal title="People" subtitle="Manage the team members who can own tasks." onClose={() => setPeopleModal(false)}><form onSubmit={savePerson} className="mb-6 grid gap-3 rounded-lg bg-[#f4f4ef] p-4 sm:grid-cols-3"><Field label="Name"><input required value={personForm.name} onChange={e => setPersonForm({ ...personForm, name: e.target.value })} placeholder="Full name" /></Field><Field label="Email"><input type="email" value={personForm.email} onChange={e => setPersonForm({ ...personForm, email: e.target.value })} placeholder="name@company.com" /></Field><Field label="Role"><input value={personForm.role} onChange={e => setPersonForm({ ...personForm, role: e.target.value })} placeholder="e.g. Operations" /></Field><button disabled={saving} className="button-primary sm:col-start-3"><Icon name="plus" /> Add person</button></form><div className="divide-y divide-[#e7e7e1]">{people.map(p => <div key={p.id} className="flex items-center gap-3 py-3"><div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e6e2d7] text-xs font-semibold">{p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}</div><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{p.name}</p><p className="truncate text-xs text-[#85867f]">{[p.role, p.email].filter(Boolean).join(" · ")}</p></div><button onClick={() => void deletePerson(p)} className="rounded-md p-2 text-[#999991] hover:bg-[#f4e7e5] hover:text-[#a33f3f]" aria-label={`Remove ${p.name}`}><Icon name="x" /></button></div>)}{people.length === 0 && <p className="py-8 text-center text-sm text-[#888981]">No people yet.</p>}</div></Modal>}
 
     {activityTask && <Modal title="Task history" subtitle={activityTask.title} onClose={() => setActivityTask(null)}><div className="space-y-1">{activities.filter(a => a.task_id === activityTask.id).map(a => <div key={a.id} className="flex gap-3 border-l border-[#dcdcd5] py-3 pl-4"><div className="mt-0.5 text-[#777970]"><Icon name="activity" /></div><div><p className="text-sm font-medium capitalize">{a.action.replace("_", " ")}</p><p className="text-xs text-[#797b73]">{a.description}</p><time className="mt-1 block text-[11px] text-[#a0a198]">{new Date(a.created_at).toLocaleString()}</time></div></div>)}{activities.filter(a => a.task_id === activityTask.id).length === 0 && <p className="py-8 text-center text-sm text-[#888981]">No activity recorded yet.</p>}</div></Modal>}
-    {notice && <div className="fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg bg-[#242520] px-4 py-3 text-sm text-white shadow-xl"><Icon name="check" /> {notice}</div>}
+    {notice && <div className="fixed bottom-20 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg bg-[#242520] px-4 py-3 text-sm text-white shadow-xl sm:bottom-5"><Icon name="check" /> {notice}</div>}
+    <button onClick={openNewTask} className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 flex min-h-14 items-center gap-2 rounded-full bg-[#242520] px-5 text-sm font-semibold text-white shadow-[0_8px_28px_rgba(20,20,18,.28)] sm:hidden"><Icon name="plus" size={19} /> New task</button>
   </main>;
 }
 
@@ -186,7 +190,7 @@ function Modal({ title, subtitle, onClose, children }: { title: string; subtitle
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#1f201d]/35 p-4 backdrop-blur-[2px]" onMouseDown={e => { if (e.currentTarget === e.target) onClose(); }}><section role="dialog" aria-modal="true" aria-label={title} className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/50 bg-[#fdfdfb] shadow-2xl"><header className="flex items-start justify-between border-b border-[#e5e5df] px-6 py-5"><div><h2 className="text-xl font-semibold tracking-tight">{title}</h2><p className="mt-1 text-xs text-[#7e7f77]">{subtitle}</p></div><button onClick={onClose} className="rounded-lg p-2 text-[#85867f] hover:bg-[#f0f0eb]" aria-label="Close"><Icon name="x" /></button></header><div className="p-6">{children}</div></section></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-end bg-[#1f201d]/35 backdrop-blur-[2px] sm:place-items-center sm:p-4" onMouseDown={e => { if (e.currentTarget === e.target) onClose(); }}><section role="dialog" aria-modal="true" aria-label={title} className="max-h-[94dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-white/50 bg-[#fdfdfb] pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[92vh] sm:rounded-2xl"><header className="sticky top-0 z-10 flex items-start justify-between border-b border-[#e5e5df] bg-[#fdfdfb] px-4 py-4 sm:px-6 sm:py-5"><div><h2 className="text-lg font-semibold tracking-tight sm:text-xl">{title}</h2><p className="mt-1 text-xs text-[#7e7f77]">{subtitle}</p></div><button onClick={onClose} className="grid min-h-11 min-w-11 place-items-center rounded-lg text-[#85867f] hover:bg-[#f0f0eb]" aria-label="Close"><Icon name="x" /></button></header><div className="p-4 sm:p-6">{children}</div></section></div>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-xs font-semibold text-[#5b5d55]"><span className="mb-1.5 block">{label}</span>{children}</label>; }
