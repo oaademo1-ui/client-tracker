@@ -54,10 +54,13 @@ export async function sendMagicLink(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${origin}/auth/callback`, shouldCreateUser: true },
+    options: {
+      emailRedirectTo: `${origin}/auth/callback?next=/reset-password?source=magic-link`,
+      shouldCreateUser: true,
+    },
   });
   if (error) loginRedirect("error", error.message);
-  loginRedirect("message", "Magic link sent. Open it to create or access your account.");
+  loginRedirect("message", "Magic link sent. Open it to access your account and optionally set a password.");
 }
 
 export async function requestPasswordReset(formData: FormData) {
