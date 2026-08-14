@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Activity, Person, Priority, Task, TaskStatus } from "@/lib/types";
+import SmartAssistant, { type AssistantDraft } from "./smart-assistant";
 
 const statuses: { id: TaskStatus; label: string; dot: string }[] = [
   { id: "todo", label: "To do", dot: "bg-[#8a8f98]" },
@@ -21,7 +22,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout" | "trash"; size?: number }) {
+function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more" | "check" | "x" | "activity" | "filter" | "logout" | "trash" | "sparkles"; size?: number }) {
   const paths = {
     plus: <path d="M12 5v14M5 12h14" />,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
@@ -33,6 +34,7 @@ function Icon({ name, size = 16 }: { name: "plus" | "users" | "calendar" | "more
     filter: <><path d="M4 6h16M7 12h10M10 18h4" /></>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>,
     trash: <><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m3 0-.9 13.1a2 2 0 0 1-2 1.9H8.9a2 2 0 0 1-2-1.9L6 7h12Z" /></>,
+    sparkles: <><path d="m12 3-1.2 3.3L7.5 7.5l3.3 1.2L12 12l1.2-3.3 3.3-1.2-3.3-1.2L12 3Z" /><path d="m18 13-.8 2.2L15 16l2.2.8L18 19l.8-2.2L21 16l-2.2-.8L18 13ZM5 12l-.7 1.8-1.8.7 1.8.7L5 17l.7-1.8 1.8-.7-1.8-.7L5 12Z" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{paths[name]}</svg>;
 }
@@ -48,6 +50,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
   const [notice, setNotice] = useState<string | null>(null);
   const [taskModal, setTaskModal] = useState(false);
   const [peopleModal, setPeopleModal] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [activityTask, setActivityTask] = useState<Task | null>(null);
   const [editing, setEditing] = useState<Task | null>(null);
   const [taskForm, setTaskForm] = useState(emptyTask);
@@ -90,6 +93,12 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
 
   function openNewTask() { setEditing(null); setTaskForm(emptyTask); setTaskModal(true); }
   function openEdit(task: Task) { setEditing(task); setTaskForm({ title: task.title, notes: task.notes || "", due_date: task.due_date || "", priority: task.priority, status: task.status, assignee_id: task.assignee_id || "" }); setTaskModal(true); }
+  function reviewAssistantDraft(draft: AssistantDraft) {
+    setEditing(null);
+    setTaskForm({ title: draft.title, notes: draft.notes, due_date: draft.due_date || "", priority: draft.priority, status: "todo", assignee_id: draft.assignee_id || "" });
+    setAssistantOpen(false);
+    setTaskModal(true);
+  }
 
   async function saveTask(event: FormEvent) {
     event.preventDefault(); if (!supabase || !taskForm.title.trim()) return;
@@ -152,7 +161,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
     <header className="sticky top-0 z-30 border-b border-[#deded8] bg-[#fbfbf8]/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1500px] items-center justify-between px-4 py-3 sm:px-5 sm:py-5 md:px-10">
         <div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-lg bg-[#20211e] text-sm font-semibold text-white">CT</div><div><h1 className="text-[15px] font-semibold tracking-tight">Client Tracker</h1><p className="text-xs text-[#85867f]">Team task board</p></div></div>
-        <div className="flex items-center gap-1.5 sm:gap-2"><span className="hidden max-w-48 truncate text-xs text-[#777970] lg:inline" title={userEmail}>{userEmail}</span><button onClick={() => setPeopleModal(true)} className="button-secondary mobile-icon-button" aria-label="Manage people"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary hidden sm:inline-flex"><Icon name="plus" /> New task</button><button onClick={() => void signOut()} className="button-secondary mobile-icon-button" aria-label="Sign out"><Icon name="logout" /><span className="hidden sm:inline">Sign out</span></button></div>
+        <div className="flex items-center gap-1.5 sm:gap-2"><span className="hidden max-w-48 truncate text-xs text-[#777970] lg:inline" title={userEmail}>{userEmail}</span><button onClick={() => setAssistantOpen(true)} className="button-secondary mobile-icon-button" aria-label="Open Smart Assistant"><Icon name="sparkles" /> <span className="hidden sm:inline">Assistant</span></button><button onClick={() => setPeopleModal(true)} className="button-secondary mobile-icon-button" aria-label="Manage people"><Icon name="users" /> <span className="hidden sm:inline">People</span></button><button onClick={openNewTask} className="button-primary hidden sm:inline-flex"><Icon name="plus" /> New task</button><button onClick={() => void signOut()} className="button-secondary mobile-icon-button" aria-label="Sign out"><Icon name="logout" /><span className="hidden sm:inline">Sign out</span></button></div>
       </div>
       <div role="tablist" aria-label="Task lists" className="grid grid-cols-3 gap-1 border-t border-[#e5e5df] bg-[#f4f4ef] p-1.5 sm:hidden">
         {statuses.map(column => {
@@ -185,6 +194,7 @@ export default function TrackerApp({ userId, userEmail }: { userId: string; user
     {peopleModal && <Modal title="People" subtitle="Manage the team members who can own tasks." onClose={() => setPeopleModal(false)}><form onSubmit={savePerson} className="mb-6 grid gap-3 rounded-lg bg-[#f4f4ef] p-4 sm:grid-cols-3"><Field label="Name"><input required value={personForm.name} onChange={e => setPersonForm({ ...personForm, name: e.target.value })} placeholder="Full name" /></Field><Field label="Email"><input type="email" value={personForm.email} onChange={e => setPersonForm({ ...personForm, email: e.target.value })} placeholder="name@company.com" /></Field><Field label="Role"><input value={personForm.role} onChange={e => setPersonForm({ ...personForm, role: e.target.value })} placeholder="e.g. Operations" /></Field><button disabled={saving} className="button-primary sm:col-start-3"><Icon name="plus" /> Add person</button></form><div className="divide-y divide-[#e7e7e1]">{people.map(p => <div key={p.id} className="flex items-center gap-3 py-3"><div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e6e2d7] text-xs font-semibold">{p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}</div><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{p.name}</p><p className="truncate text-xs text-[#85867f]">{[p.role, p.email].filter(Boolean).join(" · ")}</p></div><button onClick={() => void deletePerson(p)} className="rounded-md p-2 text-[#999991] hover:bg-[#f4e7e5] hover:text-[#a33f3f]" aria-label={`Remove ${p.name}`}><Icon name="x" /></button></div>)}{people.length === 0 && <p className="py-8 text-center text-sm text-[#888981]">No people yet.</p>}</div></Modal>}
 
     {activityTask && <Modal title="Task history" subtitle={activityTask.title} onClose={() => setActivityTask(null)}><div className="space-y-1">{activities.filter(a => a.task_id === activityTask.id).map(a => <div key={a.id} className="flex gap-3 border-l border-[#dcdcd5] py-3 pl-4"><div className="mt-0.5 text-[#777970]"><Icon name="activity" /></div><div><p className="text-sm font-medium capitalize">{a.action.replace("_", " ")}</p><p className="text-xs text-[#797b73]">{a.description}</p><time className="mt-1 block text-[11px] text-[#a0a198]">{new Date(a.created_at).toLocaleString()}</time></div></div>)}{activities.filter(a => a.task_id === activityTask.id).length === 0 && <p className="py-8 text-center text-sm text-[#888981]">No activity recorded yet.</p>}</div></Modal>}
+    {assistantOpen && <SmartAssistant people={people} onUseDraft={reviewAssistantDraft} onClose={() => setAssistantOpen(false)} />}
     {notice && <div className="fixed bottom-20 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg bg-[#242520] px-4 py-3 text-sm text-white shadow-xl sm:bottom-5"><Icon name="check" /> {notice}</div>}
     <button onClick={openNewTask} className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 flex min-h-14 items-center gap-2 rounded-full bg-[#242520] px-5 text-sm font-semibold text-white shadow-[0_8px_28px_rgba(20,20,18,.28)] sm:hidden"><Icon name="plus" size={19} /> New task</button>
   </main>;
